@@ -25,13 +25,18 @@ void load_and_run_elf(char** argv) {
   unsigned int phdr_offset=ehdr->e_phoff;
   unsigned int count_phdr_entry=ehdr->e_phnum;
   unsigned int size_phdr_entry=ehdr->e_phentsize;
+  unsigned int elfentry=ehdr->e_entry;
   phdr=(Elf32_Phdr*)malloc(sizeof(Elf32_Phdr));
   
   for(size_t i=0;i<count_phdr_entry;i++){
     lseek(fd,phdr_offset+(i*size_phdr_entry),SEEK_SET);    
     int k=read(fd,phdr,sizeof(Elf32_Phdr));
     if(phdr->p_type==1){
-      printf("%u\n",phdr->p_type);
+      void* virt_mem=mmap(NULL,phdr->p_memsz,PROT_EXEC|PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
+
+      off_t seg_addr=phdr->p_vaddr;
+      lseek(fd,seg_addr,SEEK_SET);
+      read(fd,virt_mem,phdr->p_memsz);
     }
   }
   // 1. Load entire binary content into the memory from the ELF file.
