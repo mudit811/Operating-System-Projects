@@ -36,6 +36,7 @@ void load_and_run_elf(char** argv) {
 
       off_t seg_addr=phdr->p_vaddr;
       lseek(fd,seg_addr,SEEK_SET);
+      //hello mudit
       read(fd,virt_mem,phdr->p_memsz);
     }
   }
