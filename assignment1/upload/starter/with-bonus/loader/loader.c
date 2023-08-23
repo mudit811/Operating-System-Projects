@@ -5,12 +5,24 @@
 Elf32_Ehdr *ehdr;
 Elf32_Phdr *phdr;
 int fd;
-
+unsigned int count_phdr_entry;
 /*
  * release memory and other cleanups
  */
 void loader_cleanup() {
-  
+  for (size_t i = 0; i < count_phdr_entry; i++) {
+    if (phdr->p_type == PT_LOAD) {
+      void *virt_mem = (void *)(uintptr_t)phdr->p_vaddr;
+      size_t mem_size = phdr->p_memsz;
+      if (virt_mem) {
+          munmap(virt_mem, mem_size);
+      }
+    }
+  }
+  free(phdr);
+  free(ehdr);
+
+  close(fd);
 }
 
 /*
@@ -28,7 +40,7 @@ void load_and_run_elf(char** argv) {
   ehdr=(Elf32_Ehdr*)malloc(sizeof(Elf32_Ehdr));
   int x=read(fd,ehdr,sizeof(Elf32_Ehdr));
   unsigned int phdr_offset=ehdr->e_phoff;
-  unsigned int count_phdr_entry=ehdr->e_phnum;
+  count_phdr_entry=ehdr->e_phnum;
   unsigned int size_phdr_entry=ehdr->e_phentsize;
   unsigned int elfentry=ehdr->e_entry;
 
@@ -39,6 +51,7 @@ void load_and_run_elf(char** argv) {
   for(size_t i=0;i<count_phdr_entry;i++){
     lseek(fd,phdr_offset+(i*size_phdr_entry),SEEK_SET);
     int k=read(fd,phdr,sizeof(Elf32_Phdr));
+
     //if PT_LOAD is found
     if(phdr->p_type==1){
       //checking in the entry point lies in the segment and only then loading
@@ -74,5 +87,6 @@ int main(int argc, char** argv) {
     }
 
     load_and_run_elf(argv);
+    loader_cleanup();
     return 0;
 }
