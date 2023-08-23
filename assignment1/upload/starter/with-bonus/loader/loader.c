@@ -41,16 +41,20 @@ void load_and_run_elf(char** argv) {
     int k=read(fd,phdr,sizeof(Elf32_Phdr));
     //if PT_LOAD is found
     if(phdr->p_type==1){
-      //creating a virtual mapping
+      //checking in the entry point lies in the segment and only then loading
       if(phdr->p_memsz>(elfentry)-(phdr->p_vaddr) && phdr->p_vaddr<elfentry){
+        //creating a virtual mapping
         void* virt_mem=mmap((void *)(uintptr_t)phdr->p_vaddr,phdr->p_memsz,PROT_EXEC|PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_FIXED,fd,0);
+        //going to the start of the segment
         lseek(fd,phdr->p_offset,SEEK_SET);
         read(fd,virt_mem,phdr->p_memsz);
       }
     }
   }
+  //typecasting to a function pointer
   int (*_start)(void) = (int (*)(void))elfentry;
 
+  //the last two step of calling function and printing result
   int result = _start();
   printf("User _start return value = %d\n",result);
   // 1. Load entire binary content into the memory from the ELF file.
