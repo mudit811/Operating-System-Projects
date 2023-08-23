@@ -33,15 +33,16 @@ void load_and_run_elf(char** argv) {
   //allocating space for program header
   phdr=(Elf32_Phdr*)malloc(sizeof(Elf32_Phdr));
   
-
+  //looping over program header entries
   for(size_t i=0;i<count_phdr_entry;i++){
-    lseek(fd,phdr_offset+(i*size_phdr_entry),SEEK_SET);    
+    lseek(fd,phdr_offset+(i*size_phdr_entry),SEEK_SET);
     int k=read(fd,phdr,sizeof(Elf32_Phdr));
+    //if PT_LOAD is found
     if(phdr->p_type==1){
+      //creating a virtual mapping
       void* virt_mem=mmap((void *)(uintptr_t)phdr->p_vaddr,phdr->p_memsz,PROT_EXEC|PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_FIXED,fd,0);
       lseek(fd,phdr->p_offset,SEEK_SET);
       read(fd,virt_mem,phdr->p_memsz);
-      
     }
   }
   int (*_start)(void) = (int (*)(void))elfentry;
