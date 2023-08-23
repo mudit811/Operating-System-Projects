@@ -1,4 +1,5 @@
-//hello
+//hello world
+
 #include "loader.h"
 
 Elf32_Ehdr *ehdr;
