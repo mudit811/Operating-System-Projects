@@ -1,4 +1,4 @@
-//hello i am here
+
 #include "loader.h"
 
 Elf32_Ehdr *ehdr;
