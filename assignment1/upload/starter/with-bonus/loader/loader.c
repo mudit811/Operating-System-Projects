@@ -79,14 +79,13 @@ void load_and_run_elf(char **argv)
         lseek(fd, phdr->p_offset, SEEK_SET);
         read(fd, virt_mem, phdr->p_memsz);
       }
-      else{
-        perror("Error entry point not in PT_LOAD");
-      }
     }
   }
   if (flag){
     perror("Error PT_LOAD not in elf file");
   }
+
+
   // typecasting to a function pointer
   int (*_start)(void) = (int (*)(void))elfentry;
 
