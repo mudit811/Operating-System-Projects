@@ -110,7 +110,6 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  load_and_run_elf(argv);
-  loader_cleanup();
-  return 0;
+    load_and_run_elf(argv);
+    return 0;
 }
