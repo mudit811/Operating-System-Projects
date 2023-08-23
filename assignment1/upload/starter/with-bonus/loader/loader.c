@@ -87,6 +87,5 @@ int main(int argc, char** argv) {
     }
 
     load_and_run_elf(argv);
-    loader_cleanup();
     return 0;
 }
