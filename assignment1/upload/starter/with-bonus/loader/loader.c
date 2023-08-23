@@ -53,7 +53,7 @@ void load_and_run_elf(char **argv)
   count_phdr_entry = ehdr->e_phnum;
   unsigned int size_phdr_entry = ehdr->e_phentsize;
   unsigned int elfentry = ehdr->e_entry;
-
+  int flag=1;
   // allocating space for program header
   phdr = (Elf32_Phdr *)malloc(sizeof(Elf32_Phdr));
 
@@ -69,6 +69,7 @@ void load_and_run_elf(char **argv)
     // if PT_LOAD is found
     if (phdr->p_type == 1)
     {
+      flag=0;
       // checking in the entry point lies in the segment and only then loading
       if (phdr->p_memsz > (elfentry) - (phdr->p_vaddr) && phdr->p_vaddr < elfentry)
       {
@@ -78,7 +79,13 @@ void load_and_run_elf(char **argv)
         lseek(fd, phdr->p_offset, SEEK_SET);
         read(fd, virt_mem, phdr->p_memsz);
       }
+      else{
+        perror("Error entry point not in PT_LOAD");
+      }
     }
+  }
+  if (flag){
+    perror("Error PT_LOAD not in elf file");
   }
   // typecasting to a function pointer
   int (*_start)(void) = (int (*)(void))elfentry;
