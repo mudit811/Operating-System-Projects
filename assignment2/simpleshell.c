@@ -211,18 +211,7 @@ void shell_loop()
             historycount++;
             status = launch(command);
         }
-        for (int i = 0; i < backgroundCount; i++) {
-            pid_t result = waitpid(backgroundProcesses[i], NULL, WNOHANG);
-            if (result > 0) {
-                printf("[%d]  %d   Completed\n", i,backgroundProcesses[i]);
-                // Background process has completed, remove it from the list
-                for (int j = i; j < backgroundCount - 1; j++) {
-                    backgroundProcesses[j] = backgroundProcesses[j + 1];
-                }
-                backgroundCount--;
-                i--; 
-            }
-        }
+        
     } while (status);
 }
 // this is the main running loop
