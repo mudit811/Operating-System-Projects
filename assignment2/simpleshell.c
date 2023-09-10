@@ -55,18 +55,28 @@ void parse_command()
     Args[i] = NULL;
 }
 // the final function which will run the command
-int create_process_and_run(char *command)
+int create_process_and_run(char *command,int input_fd)
 {
+    parse_command();
+    int pipe_fd[2];
+    if(pipe(pipe_fd)==-1){
+        printf("pipe error");
+        exit(EXIT_FAILURE);
+    }
     pid_t status = fork();
-    if (status <= -1)
-    {
+    if (status <= -1){
         printf("Child not created\n");
         exit(0);
     }
     else if (status == 0)
     {
+        close(pipe_fd[0]);
         // printf("I am the child (%d)\n", getpid());
         // parse_command();
+        if (input_fd != -1) {
+            dup2(input_fd, STDIN_FILENO);
+            close(input_fd);
+        }
         if (back_proc)
         {
             setpgid(0, 0);
@@ -80,32 +90,28 @@ int create_process_and_run(char *command)
         // Background process
         if (back_proc == 0)
         {
-            waitpid(status, NULL, 0);
-        }
-        else
-        {
-            backgroundProcesses[backgroundCount]=getpid();
-            printf("[%d]  %d\n", backgroundCount,getpid());
-            backgroundCount++;
-        }
+            int ret;
+            int pid = wait(&ret);
+            if (WIFEXITED(ret))
+            {
+                printf("% d Exit = % d\n", pid, WEXITSTATUS(ret));
+            }
+            else
+            {
+                printf("Abnormal termination of % d\n", pid);
+                perror("Fork failed");
+                exit(EXIT_FAILURE);
+            }
+            }
+            else
+            {
+                backgroundProcesses[backgroundCount]=getpid();
+                printf("[%d]  %d\n", backgroundCount,getpid());
+                backgroundCount++;
+            }
       
     }
-    else
-    {
-        int ret;
-        int pid = wait(&ret);
-        if (WIFEXITED(ret))
-        {
-            printf("% d Exit = % d\n", pid, WEXITSTATUS(ret));
-        }
-        else
-        {
-            printf("Abnormal termination of % d\n", pid);
-            perror("Fork failed");
-            exit(EXIT_FAILURE);
-        }
-        // printf("I am the parent Shell\n");
-    }
+    
      
 
 }
@@ -113,9 +119,13 @@ int create_process_and_run(char *command)
 int launch(char *command)
 {
     int status;
-
-    parse_command();
-    status = create_process_and_run(command);
+    char* command=strtok(Input,"|");
+    int input_fd=-1;
+    while(command!=NULL){
+        status = create_process_and_run(command,input_fd);
+        input_fd=STDIN_FILENO;
+        command=strtok(NULL,"|");
+    }
     return status;
 }
 int is_valid_format(const char *input) {
@@ -138,8 +148,6 @@ int is_valid_format(const char *input) {
 
     return (ret == 0); // Return 1 if the input matches the pattern, 0 otherwise
 }
-
-
 
 // used to take input of a function
 char *read_user_input()
@@ -204,8 +212,7 @@ void shell_loop()
                 printf("%d: %s\n", i + 1, history_book[i]);
             }
         }
-        else
-        {
+        else{
             // store command in history
             history_book[historycount] = strdup(command);
             historycount++;
