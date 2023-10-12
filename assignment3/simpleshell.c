@@ -1,22 +1,13 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <stdbool.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <regex.h>
+#include "header.h"
 
 char Input[256];
 char *Args[16];
 char *history_book[20];
 int historycount = 0;
-
 pid_t backgroundProcesses[100]; 
 int backgroundCount=0;
 bool back_proc = false;
-
+int ncpu,tslice;
 
 int secure_strcmp(const char *str1, const char *str2)
 {
@@ -71,7 +62,12 @@ int create_process_and_run(char *command)
         {
             setpgid(0, 0);
         }
-        execvp(Args[0], Args);
+        if(secure_strcmp(Args[0],"submit")){
+            submit(Args,ncpu,tslice);
+        }
+        else{
+            execvp(Args[0], Args);
+        }
         perror("Error in executing command");
         exit(EXIT_FAILURE);
     }
@@ -206,10 +202,17 @@ void shell_loop()
     } while (status);
 }
 // this is the main running loop
-int main()
+int main(int argc,char* argv[])
 {
-    bool runInBackground = false;
-    // the main shell loop is called
-    shell_loop();
-
+    if (argc != 3) {
+        printf("Usage: %s <ncpu> <tslice>\n", argv[0]);
+        return 1;
+    }
+    else{
+        ncpu=atoi(argv[1]);
+        tslice=atoi(argv[2]);
+        bool runInBackground = false;
+        // the main shell loop is called
+        shell_loop();
+    }
 }

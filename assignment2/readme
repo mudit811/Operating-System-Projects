@@ -1,0 +1,24 @@
+contribution-
+mudit- main shell code
+kushagra- error handling and bonus
+https://github.com/theniceguy8731/OS-assignments/tree/7e1da4b0bec23fb6c0322653b19e61c0cf536d21/assignment2
+
+Parsing Input: The program reads user input and parses it into commands and arguments. It handles the "&" symbol to identify and execute background processes.
+
+Executing Commands: It creates child processes using fork() and executes user-entered commands in these child processes using execvp().
+
+History: It maintains a history of previously entered commands and displays them using the "history" command.
+
+Background Processes: It supports running commands in the background when the "&" symbol is appended to the command.
+
+Shell Loop: The program runs in an infinite loop, allowing users to enter commands repeatedly until they choose to exit by typing "exit."
+
+Shell Script Execution: The code includes a check for executing shell scripts by checking if the command starts with "./" and ends with ".sh."
+
+Change Mode: It uses the chmod command to make shell scripts executable before running them.
+
+Error Handling: It provides error handling for various situations, including failed process creation and command execution.
+
+PID Display: It displays the PIDs of background processes when they are started.
+
+Overall, your code implements a basic shell with support for running commands, background processes, history, and shell script execution. It allows users to interact with the shell and execute commands. However, please note that while your code is functional for basic use cases, it may require further refinement and error handling for production use.
