@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <regex.h>
@@ -31,3 +32,5 @@ typedef struct ReadyQueue {
 void submit(char* const argv[],int ncpu,int tslice);
 void scheduler(int ncpu,int tslice);
 ReadyQueue *queue;
+Process* submit(char* const argv[],int ncpu,int tslice,Process * process);
+void scheduler();

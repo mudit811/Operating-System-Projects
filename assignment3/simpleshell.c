@@ -116,14 +116,6 @@ int create_process_and_run(char *command)
         }
         if(secure_strcmp(Args[0],"submit")){
             submit(Args,ncpu,tslice);
-            // if (queue->front == NULL) {
-            //     queue->front = newProcess;
-            //     queue->rear = newProcess;
-            // } 
-            // else {
-            //     queue->rear->next = newProcess;
-            //     queue->rear = newProcess;
-            // }
         }
         else{
             execvp(Args[0], Args);
