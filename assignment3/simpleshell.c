@@ -9,6 +9,18 @@ int backgroundCount=0;
 bool back_proc = false;
 int ncpu,tslice;
 
+void enqueue(Process* p){
+    if (queue->rear == NULL) {
+        // Queue is empty, set both front and rear to the new process
+        queue->front = queue->rear = p;
+    } 
+    else {
+        // Add the new process to the end of the queue
+        queue->rear->next = p;
+        queue->rear = p;
+    }
+}
+
 int shm_setup(){
     // Create a shared memory segment
     int shm_fd = shm_open("/ready_queue", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
@@ -110,14 +122,16 @@ int create_process_and_run(char *command)
     {
         // printf("I am the child (%d)\n", getpid());
         // parse_command();
-        if (back_proc)
-        {
+        if (back_proc){
             setpgid(0, 0);
         }
+
+        //if the command is of type submit
         if(secure_strcmp(Args[0],"submit")){
             Process* p=(Process*)malloc(sizeof(Process));
-            submit(Args,ncpu,tslice,p);
-        }
+            p=submit(Args,ncpu,tslice,p);
+            enqueue(p);
+        }            
         else{
             execvp(Args[0], Args);
         }
@@ -219,6 +233,7 @@ char *read_user_input()
 // running shell infinite loop
 void shell_loop()
 {
+    scheduler(ncpu,tslice);    
     int status;
     do
     {
