@@ -7,6 +7,10 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <regex.h>
+#include <signal.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <linux/fcntl.h>
 
 #define MAX_CMD_LEN 100  // Maximum command length
 
@@ -23,5 +27,7 @@ typedef struct ReadyQueue {
     Process *rear;
 } ReadyQueue;
 
+
 void submit(char* const argv[],int ncpu,int tslice);
-void scheduler();
+void scheduler(int ncpu,int tslice);
+ReadyQueue *queue;

@@ -9,6 +9,60 @@ int backgroundCount=0;
 bool back_proc = false;
 int ncpu,tslice;
 
+int shm_setup(){
+    // Create a shared memory segment
+    int shm_fd = shm_open("/ready_queue", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+    if (shm_fd == -1) {
+        perror("shm_open");
+        exit(EXIT_FAILURE);
+    }
+    // Set the size of the shared memory segment
+    if (ftruncate(shm_fd, sizeof(ReadyQueue)) == -1) {
+        perror("ftruncate");
+        exit(EXIT_FAILURE);
+    }
+    // Map the shared memory segment into the address space
+    queue = (ReadyQueue *)mmap(NULL, sizeof(ReadyQueue), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (queue == MAP_FAILED) {
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
+    //initialized the semaphore
+    // if (sem_init(&queue->mutex, 1, 1) != 0) {
+    //     perror("sem_init");
+    //     return EXIT_FAILURE;
+    // }
+
+    // Initialize the shared queue
+    queue->front = NULL;
+    queue->rear = NULL;
+
+    // Access the shared queue
+    return shm_fd;
+}
+
+void shm_cleanup(int shm_fd){
+    // Unmap the shared memory segment
+    if (munmap(queue, sizeof(ReadyQueue)) == -1) {
+        perror("munmap");
+        exit(EXIT_FAILURE);
+    }
+    // Close the shared memory file descriptor
+    if (close(shm_fd) == -1) {
+        perror("close");
+        exit(EXIT_FAILURE);
+    }
+    // Unlink the shared memory segment
+    if (shm_unlink("/ready_queue") == -1) {
+        perror("shm_unlink");
+        exit(EXIT_FAILURE);
+    }
+    // if (sem_destroy(&queue->mutex)) == -1) {
+    //     perror("sem_destroy");
+    //     exit(EXIT_FAILURE);
+    // }
+}
+
 int secure_strcmp(const char *str1, const char *str2)
 {
     while (*str1 && *str2)
@@ -22,8 +76,6 @@ int secure_strcmp(const char *str1, const char *str2)
     }
     return (*str1 == '\0' && *str2 == '\0') ? 0 : 1;
 }
-
-
 
 // breaks the input command into function and it's arguments by using strtok
 void parse_command()
@@ -64,6 +116,14 @@ int create_process_and_run(char *command)
         }
         if(secure_strcmp(Args[0],"submit")){
             submit(Args,ncpu,tslice);
+            // if (queue->front == NULL) {
+            //     queue->front = newProcess;
+            //     queue->rear = newProcess;
+            // } 
+            // else {
+            //     queue->rear->next = newProcess;
+            //     queue->rear = newProcess;
+            // }
         }
         else{
             execvp(Args[0], Args);
@@ -126,8 +186,6 @@ int is_valid_format(const char *input) {
     }
     return 0; // Not a valid format
 }
-
-
 
 // used to take input of a function
 char *read_user_input()
@@ -211,8 +269,11 @@ int main(int argc,char* argv[])
     else{
         ncpu=atoi(argv[1]);
         tslice=atoi(argv[2]);
+
         bool runInBackground = false;
         // the main shell loop is called
+        int shm_fd=shm_setup();
         shell_loop();
+        shm_cleanup(shm_fd);
     }
 }

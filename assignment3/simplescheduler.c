@@ -1,5 +1,6 @@
 #include "header.h"
 
-void scheduler(){
+void scheduler(int ncpu,int tslice){
+    
 
 }
