@@ -115,7 +115,8 @@ int create_process_and_run(char *command)
             setpgid(0, 0);
         }
         if(secure_strcmp(Args[0],"submit")){
-            submit(Args,ncpu,tslice);
+            Process* p=(Process*)malloc(sizeof(Process));
+            submit(Args,ncpu,tslice,p);
         }
         else{
             execvp(Args[0], Args);
