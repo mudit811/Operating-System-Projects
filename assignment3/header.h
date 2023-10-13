@@ -30,5 +30,5 @@ typedef struct ReadyQueue {
 
 
 void scheduler(int ncpu,int tslice);
-ReadyQueue *queue;
 Process* submit(char* const argv[],int ncpu,int tslice,Process * process);
+ReadyQueue *queue;
