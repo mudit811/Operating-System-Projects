@@ -29,8 +29,6 @@ typedef struct ReadyQueue {
 } ReadyQueue;
 
 
-void submit(char* const argv[],int ncpu,int tslice);
 void scheduler(int ncpu,int tslice);
 ReadyQueue *queue;
 Process* submit(char* const argv[],int ncpu,int tslice,Process * process);
-void scheduler();
