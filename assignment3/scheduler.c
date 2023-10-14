@@ -110,7 +110,7 @@ int main()
 
                 int res=kill(process_array[a]->pid,SIGSTOP);
                 enqueue(process_array[a],queue);
-                a++
+                a++;
             }
             while (a < ncpu)
             {
