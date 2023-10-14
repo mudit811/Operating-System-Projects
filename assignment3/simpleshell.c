@@ -1,4 +1,36 @@
-#include "header.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdbool.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <regex.h>
+#include <signal.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <linux/fcntl.h>
+
+#define MAX_CMD_LEN 100  // Maximum command length
+
+typedef struct Process {
+    char executable[MAX_CMD_LEN];
+    pid_t pid;
+    int execution_time;
+    int wait_time;
+    struct Process *next;
+} Process;
+
+typedef struct ReadyQueue {
+    Process *front;
+    int ncpu;
+    int tslice;
+    Process *rear;
+} ReadyQueue;
+
+ReadyQueue *queue;
 
 char Input[256];
 char *Args[16];
@@ -9,49 +41,45 @@ int backgroundCount=0;
 bool back_proc = false;
 int ncpu,tslice;
 
-void scheduler(int ncpu,int tslice){
-    int sched_pid=fork();
-    if (sched_pid == -1) {
-        perror("Fork failed");
-        exit(1);
-    } 
-    else if (sched_pid == 0) {
-        // Child process
-        char *args[]={"./scheduler.out",NULL};
-        execv("./scheduler.out",args);
-        perror("execv error");
-        exit(EXIT_FAILURE);
-    } 
-    else {
-        // Parent process
-        // wait(NULL);
-        // char * exec_args[]={"./sched_exec",NULL};
-        // if (execvp(exec_args[0],exec_args)==-1){
-        //     perror("compiled file coudn't be executed");
-        //     exit(EXIT_FAILURE);
-        // }
-    }
+// void scheduler(int ncpu,int tslice){
+//     int sched_pid=fork();
+//     if (sched_pid == -1) {
+//         perror("Fork failed");
+//         exit(1);
+//     } 
+//     else if (sched_pid == 0) {
+//         // Child process
+//         char *args[]={"./scheduler.out",NULL};
+//         execv("./scheduler.out",args);
+//         perror("execv error");
+//         exit(EXIT_FAILURE);
+//     } 
+//     else {
+//         // Parent process
+//         // wait(NULL);
+//         // char * exec_args[]={"./sched_exec",NULL};
+//         // if (execvp(exec_args[0],exec_args)==-1){
+//         //     perror("compiled file coudn't be executed");
+//         //     exit(EXIT_FAILURE);
+//         // }
+//     }
 
 
-}
+// }
 
 Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
 {
     pid_t status = fork();
     int flag = 0, fd[2];
-    if (pipe(fd) == -1)
-    {
+    if (pipe(fd) == -1){
         perror("Pipe creation failed");
         exit(EXIT_FAILURE);
     }
-
-    if (status <= -1)
-    {
+    if (status <= -1){
         printf("Child not created\n");
         exit(0);
     }
-    else if (status == 0)
-    {
+    else if (status == 0){
         close(fd[1]);
         while (flag == 0)
         {
@@ -70,6 +98,7 @@ Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
         close(fd[1]);
         strcpy(p->executable,Argv[0]);
         p->pid = status;
+        printf("%d",p->pid);
         return p;
     }
 }
@@ -192,14 +221,16 @@ int create_process_and_run(char *command)
         }
 
         //if the command is of type submit
-        if(secure_strcmp(Args[0],"submit")){
+        if(!secure_strcmp(Args[0],"submit")){
             Process* p=(Process*)malloc(sizeof(Process));
             p=submit(Args,ncpu,tslice,p);
+            printf("%d",p->pid);
             enqueue(p);
         }            
         else{
             execvp(Args[0], Args);
         }
+        //execv(Args[0],Args);
         perror("Error in executing command");
         exit(EXIT_FAILURE);
     }
@@ -298,9 +329,9 @@ char *read_user_input()
 // running shell infinite loop
 void shell_loop()
 {
-    queue->ncpu=ncpu;
-    queue->tslice=tslice;
-    scheduler(ncpu,tslice);    
+    //queue->ncpu=ncpu;
+    //queue->tslice=tslice;
+    //scheduler(ncpu,tslice);    
     int status;
     do
     {

@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 int main() {
-    const int LOOP_ITERATIONS = 100000000;  // Adjust this value to control the execution time
+    const long LOOP_ITERATIONS = 1000000000;  // Adjust this value to control the execution time
 
     printf("Program running for about 5 seconds...\n");
 
