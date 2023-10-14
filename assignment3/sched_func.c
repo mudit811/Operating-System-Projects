@@ -12,21 +12,19 @@ void scheduler(int ncpu,int tslice){
     } 
     else if (sched_pid == 0) {
         // Child process
-        char *program ="gcc";
-        char *args[] = {"gcc", "scheduler.c","-o","sched_exec",NULL};
-        if (execvp(program,args)==-1){
-            perror("scheduler.c coudnt be compiled");
-            exit(EXIT_FAILURE);
-        }
+        char *args[]={"./scheduler.out",NULL};
+        execv("./scheduler.out",args);
+        perror("execv error");
+        exit(EXIT_FAILURE);
     } 
     else {
         // Parent process
-        wait(NULL);
-        char * exec_args[]={"./sched_exec",NULL};
-        if (execvp(exec_args[0],exec_args)==-1){
-            perror("compiled file coudn't be executed");
-            exit(EXIT_FAILURE);
-        }
+        // wait(NULL);
+        // char * exec_args[]={"./sched_exec",NULL};
+        // if (execvp(exec_args[0],exec_args)==-1){
+        //     perror("compiled file coudn't be executed");
+        //     exit(EXIT_FAILURE);
+        // }
     }
 
 

@@ -22,10 +22,8 @@ Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
             read(fd[0], &flag, sizeof(flag));
         }
         close(fd[0]);
-        
         execvp(Argv[0],Argv);
         // printf("I am  the child (%d)\n", getpid());
-        // exec
     }
     else if (status > 0)
     {
