@@ -29,7 +29,8 @@ Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
     {
         close(fd[0]);
         int result= kill(status,SIGSTOP);
-
+        flag=1;
+        
         strcpy(p->executable,Argv);
         p->pid = status;
         return p;

@@ -8,9 +8,12 @@ void scheduler(int ncpu,int tslice){
     } 
     else if (sched_pid == 0) {
         // Child process
+        char *args[] = {"ls", "-l", NULL};
+        execv("/bin/ls",args);
     } 
     else {
         // Parent process
+        
     }
 
 
