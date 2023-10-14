@@ -12,6 +12,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <linux/fcntl.h>
+#include <semaphore.h>
+#include <time.h>
 
 #define MAX_CMD_LEN 100  // Maximum command length
 
@@ -28,6 +30,7 @@ typedef struct ReadyQueue {
     int ncpu;
     int tslice;
     Process *rear;
+    sem_t mutex;
 } ReadyQueue;
 
 ReadyQueue *queue;
@@ -41,64 +44,66 @@ int backgroundCount=0;
 bool back_proc = false;
 int ncpu,tslice;
 
-// void scheduler(int ncpu,int tslice){
-//     int sched_pid=fork();
-//     if (sched_pid == -1) {
-//         perror("Fork failed");
-//         exit(1);
-//     } 
-//     else if (sched_pid == 0) {
-//         // Child process
-//         char *args[]={"./scheduler.out",NULL};
-//         execv("./scheduler.out",args);
-//         perror("execv error");
-//         exit(EXIT_FAILURE);
-//     } 
-//     else {
-//         // Parent process
-//         // wait(NULL);
-//         // char * exec_args[]={"./sched_exec",NULL};
-//         // if (execvp(exec_args[0],exec_args)==-1){
-//         //     perror("compiled file coudn't be executed");
-//         //     exit(EXIT_FAILURE);
-//         // }
-//     }
+void scheduler(int ncpu,int tslice){
+    int sched_pid=fork();
+    if (sched_pid == -1) {
+        perror("Fork failed");
+        exit(1);
+    } 
+    else if (sched_pid == 0) {
+        // Child process
+        char *args[]={"./scheduler.out",NULL};
+        execvp("./scheduler.out",args);
+        perror("execv error");
+        exit(EXIT_FAILURE);
+    }
+    else {
+        // Parent process
+        // wait(NULL);
+        // char * exec_args[]={"./sched_exec",NULL};
+        // if (execvp(exec_args[0],exec_args)==-1){
+        //     perror("compiled file coudn't be executed");
+        //     exit(EXIT_FAILURE);
+        // }
+    }
 
 
-// }
+}
 
 Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
 {
     pid_t status = fork();
-    int flag = 0, fd[2];
-    if (pipe(fd) == -1){
-        perror("Pipe creation failed");
-        exit(EXIT_FAILURE);
-    }
-    if (status <= -1){
+
+    //int flag = 0, fd[2];
+    // if (pipe(fd) == -1){
+    //     perror("Pipe creation failed");
+    //     exit(EXIT_FAILURE);
+    // }
+    if (status < 0){
         printf("Child not created\n");
         exit(0);
     }
     else if (status == 0){
-        close(fd[1]);
-        while (flag == 0)
-        {
-            read(fd[0], &flag, sizeof(flag));
-        }
-        close(fd[0]);
+        kill(getpid(),SIGSTOP);
+        // close(fd[1]);
+        // while (flag == 0)
+        // {
+        //     read(fd[0], &flag, sizeof(flag));
+        // }
+        //close(fd[0]);
         execvp(Argv[0],Argv);
         // printf("I am  the child (%d)\n", getpid());
     }
     else if (status > 0)
     {
-        close(fd[0]);
-        int result= kill(status,SIGSTOP);
-        flag=1;
-        write(fd[1],&flag,sizeof(flag));
-        close(fd[1]);
+        //close(fd[0]);
+        //int result= kill(status,SIGSTOP);
+        //flag=1;
+        //write(fd[1],&flag,sizeof(flag));
+        //close(fd[1]);
         strcpy(p->executable,Argv[0]);
         p->pid = status;
-        printf("%d",p->pid);
+        //printf("%d",p->pid);
         return p;
     }
 }
@@ -163,10 +168,7 @@ void shm_cleanup(int shm_fd){
         perror("shm_unlink");
         exit(EXIT_FAILURE);
     }
-    // if (sem_destroy(&queue->mutex)) == -1) {
-    //     perror("sem_destroy");
-    //     exit(EXIT_FAILURE);
-    // }
+    //sem_destroy(&queue->mutex);
 }
 
 int secure_strcmp(const char *str1, const char *str2)
@@ -224,15 +226,17 @@ int create_process_and_run(char *command)
         if(!secure_strcmp(Args[0],"submit")){
             Process* p=(Process*)malloc(sizeof(Process));
             p=submit(Args,ncpu,tslice,p);
-            printf("%d",p->pid);
+            //sem_wait(&queue->mutex);
             enqueue(p);
+            //sem_post(&queue->mutex);
+            printf("%d\n",queue->front->pid);
+            printf("%d\n",queue->rear->pid);
         }            
         else{
             execvp(Args[0], Args);
+            perror("Error in executing command");
+            exit(EXIT_FAILURE);
         }
-        //execv(Args[0],Args);
-        perror("Error in executing command");
-        exit(EXIT_FAILURE);
     }
     else if (status > 0)
     {
@@ -329,9 +333,9 @@ char *read_user_input()
 // running shell infinite loop
 void shell_loop()
 {
-    //queue->ncpu=ncpu;
-    //queue->tslice=tslice;
-    //scheduler(ncpu,tslice);    
+    queue->ncpu=ncpu;
+    queue->tslice=tslice;
+    scheduler(ncpu,tslice);
     int status;
     do
     {
