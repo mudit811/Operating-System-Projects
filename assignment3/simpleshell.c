@@ -233,6 +233,8 @@ char *read_user_input()
 // running shell infinite loop
 void shell_loop()
 {
+    queue->ncpu=ncpu;
+    queue->tslice=tslice;
     scheduler(ncpu,tslice);    
     int status;
     do

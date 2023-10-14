@@ -25,6 +25,8 @@ typedef struct Process {
 
 typedef struct ReadyQueue {
     Process *front;
+    int ncpu;
+    int tslice;
     Process *rear;
 } ReadyQueue;
 

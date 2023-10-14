@@ -22,6 +22,8 @@ Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
             read(fd[0], &flag, sizeof(flag));
         }
         close(fd[0]);
+        
+        execvp(Argv[0],Argv);
         // printf("I am  the child (%d)\n", getpid());
         // exec
     }
@@ -30,7 +32,8 @@ Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
         close(fd[0]);
         int result= kill(status,SIGSTOP);
         flag=1;
-        
+        write(fd[1],&flag,sizeof(flag));
+        close(fd[1]);
         strcpy(p->executable,Argv);
         p->pid = status;
         return p;
