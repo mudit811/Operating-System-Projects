@@ -109,7 +109,7 @@ void scheduler(int ncpu, int tslice)
     }
     else if (sched_pid == 0)
     {
-
+        sleep(1);
         // clock_t start_time, current_time;
         // double elapsed_time;
         // int status;
@@ -131,24 +131,29 @@ void scheduler(int ncpu, int tslice)
                 printf("pid: %d ",queue->ready_queue[i].pid);
             }
             printf("\n");
-
+            
             int a = 0;
             for(int i = queue->st; i < queue->en; i++)
             {
                 if(a > ncpu)
                     break;
+                sem_wait(&queue->mutex);
                 kill(queue->ready_queue[i].pid,SIGCONT);
+                sem_post(&queue->mutex);
                 a++;
             }
             
             sleep(tslice/1000);
 
             a = 0;
+
             for(int i = queue->st; i < queue->en; i++)
             {
                 if(a > ncpu)
                     break;
+                sem_wait(&queue->mutex);
                 kill(queue->ready_queue[i].pid,SIGSTOP);
+                sem_post(&queue->mutex);
                 a++;
             }
 
@@ -162,9 +167,6 @@ void scheduler(int ncpu, int tslice)
             }
             queue->st += a;
             
-
-
-
 
             /*
             // printf("queue size: %d\n",queue_size);
@@ -283,6 +285,7 @@ void submit(char *const Argv[], int ncpu, int tslice)
     }
     else if (status > 0)
     {
+        // usleep(100);
         kill(status, SIGSTOP);
         Process p;
         p.pid = status;
@@ -291,16 +294,20 @@ void submit(char *const Argv[], int ncpu, int tslice)
 
         // semaphore
         // printf("submit/n");
-        sem_wait(&queue->mutex);
+
+        // sem_wait(&queue->mutex);
+
         queue->ready_queue[queue->en] = p;
         queue->en++;
+
+        // sem_post(&queue->mutex);
 
         for(int i = queue->st; i < queue->en; i++)
         {
             printf("%d ",queue->ready_queue[i].pid);
         }
         printf("\n");
-        sem_post(&queue->mutex);
+
 
         // return p;
     }
@@ -329,6 +336,11 @@ void shm_setup(int ncpu,int tslice)
         exit(EXIT_FAILURE);
     }
 
+    if (sem_init(&queue->mutex, 0, 1) == -1)
+    {
+        perror("sem_init");
+        exit(1);
+    }
     // Initialize the shared queue
     queue->front = NULL;
     queue->rear = NULL;
@@ -420,10 +432,10 @@ int create_process_and_run(char *command)
         {
             // printf("submit/n");
             // Process p = (Process)malloc(sizeof(Process));
-            submit(Args, ncpu, tslice);
             // sem_wait(&queue->mutex);
-            // printf("size: %d\n",queue_size);
+            submit(Args, ncpu, tslice);
             // sem_post(&queue->mutex);
+            // printf("size: %d\n",queue_size);
         }
         else
         {
@@ -580,11 +592,7 @@ int main(int argc, char *argv[])
         // the main shell loop is called
         shm_setup(ncpu,tslice);
         //initialized the semaphore
-        if (sem_init(&queue->mutex, 1, 1) != 0)
-        {
-            perror("sem_init");
-            return EXIT_FAILURE;
-        }
+
 
         shell_loop();
         // printf("ended\n");
