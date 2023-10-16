@@ -32,6 +32,9 @@ typedef struct Process
 typedef struct ReadyQueue
 {
     Process *front;
+    Process ready_queue[100];
+    int st;
+    int en;
     int ncpu;
     int tslice;
     Process *rear;
@@ -79,6 +82,23 @@ Process *dequeue()
 }
 
 
+int queue_size()
+{
+    // sem_wait(&queue->mutex);
+    printf("front: %s rear: %s",queue->front,queue->rear);
+    int n = 0;
+    Process *it = queue->front;
+    if(it == NULL)
+        return 0;
+    while (it != NULL)
+    {
+        n++;
+        it = it->next;
+    }
+    // sem_post(&queue->mutex);
+    return n;
+}
+
 void scheduler(int ncpu, int tslice)
 {
     pid_t sched_pid = fork();
@@ -105,54 +125,83 @@ void scheduler(int ncpu, int tslice)
         // printf("%d",tslice);
         while (1)
         {
-            
-
-            current_time = clock();   
-            double sec=(double)start_time/CLOCKS_PER_SEC;                                                    // Get the current time
+            printf("queue size: %d\n",queue_size);
+            // fflush(STDOUT_FILENO);
+            // current_time = clock();   
+            // double sec=(double)start_time/CLOCKS_PER_SEC;                                                    // Get the current time
             //elapsed_time = ((double)(current_time - start_time)) / CLOCKS_PER_SEC * 1000; // Calculate elapsed time in milliseconds
             // Check if the desired interval has passed
-            if ( ((double)current_time - (double)start_time) >= ( (double)tslice * CLOCKS_PER_SEC / 1000) )
+            int drug = 0;
+            if (drug == drug)
             {
                 // fflush(stdout);
                 // printf(" %.2f ",sec);
 
                 int a = 0;
-                while (process_array[a]!=NULL){
-                    printf("%s\n",process_array[a]->executable);
+
+                Process *it = queue->front;
+                while (a < ncpu)
+                {
+                    if(it == NULL)
+                    {
+                        printf("done\n");
+                        break;
+                    }
+                    // sem_wait(&queue->mutex);
+                    printf("pid: %d\n",it->pid);
+                    // sem_post(&queue->mutex);
+
                     fflush(stdout);
 
                     //pid_t result = waitpid(process_array[a]->pid, &status, WNOHANG) ;
 
-                    int res=kill(process_array[a]->pid,SIGSTOP);
+                    kill(it->pid,SIGCONT);
                     printf("asking to stop\n");
                     fflush(stdout);
                     //sem_wait(&queue->mutex);
-                    enqueue((process_array[a]));
+                    // enqueue((process_array[a]));
                     //sem_post(&queue->mutex);
-                    process_array[a]=NULL;
+                    // process_array[a]=NULL;
+                    it=it->next;
                     a++;
                 }
-                int j=0;
-                while (j < ncpu)
-                {
-                    printf("%s\n",process_array[j]->executable);
-                    fflush(stdout);
-                    //sem_wait(&queue->mutex);
-                    process_array[a] = dequeue(queue);
-                    //sem_post(&queue->mutex);
-                    if (process_array[j] != NULL)
-                    {
-                        int res = kill(process_array[j]->pid, SIGCONT);
-                        printf("asking to cont\n");
-                        fflush(stdout);
+                sleep(tslice/1000);
 
-                    }
-                    else{
+                it = queue->front;
+                int b = 0;
+                while(b < ncpu)
+                {
+                    if(it == NULL)
+                    {
                         break;
                     }
-                    j++;
+
+                    kill(it->pid,SIGSTOP);
+
+                    it= it->next;
+                    b++;
                 }
-                start_time = current_time;
+                // int j=0;
+                // while (j < ncpu)
+                // {
+                //     printf("%s\n",process_array[j]->executable);
+                //     fflush(stdout);
+                //     //sem_wait(&queue->mutex);
+                //     process_array[a] = dequeue(queue);
+                //     //sem_post(&queue->mutex);
+                //     if (process_array[j] != NULL)
+                //     {
+                //         int res = kill(process_array[j]->pid, SIGCONT);
+                //         printf("asking to cont\n");
+                //         fflush(stdout);
+
+                //     }
+                //     else{
+                //         break;
+                //     }
+                //     j++;
+                // }
+                // sleep(tslice/1000);
             }
         }
         //sem_destroy(&queue->mutex);
@@ -185,14 +234,12 @@ Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
     }
     else if (status == 0)
     {
-        kill(getpid(), SIGSTOP);
-
-
         execvp(Argv[1], Argv);
         // printf("I am  the child (%d)\n", getpid());
     }
     else if (status > 0)
     {
+        kill(status, SIGSTOP);
         strcpy(p->executable, Argv[1]);
         p->pid = status;
         return p;
@@ -311,9 +358,10 @@ int create_process_and_run(char *command)
         {
             Process *p = (Process *)malloc(sizeof(Process));
             p = submit(Args, ncpu, tslice, p);
-            //sem_wait(&queue->mutex);
+            // sem_wait(&queue->mutex);
             enqueue(p);
-            //sem_post(&queue->mutex);
+            printf("size: %d\n",queue_size);
+            // sem_post(&queue->mutex);
         }
         else
         {
