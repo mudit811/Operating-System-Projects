@@ -27,6 +27,7 @@ typedef struct Process
     int execution_time;
     int wait_time;
     struct Process *next;
+    int status;
 } Process;
 
 typedef struct ReadyQueue
@@ -109,7 +110,7 @@ void scheduler(int ncpu, int tslice)
     }
     else if (sched_pid == 0)
     {
-        sleep(1);
+        // sleep(1);
         // clock_t start_time, current_time;
         // double elapsed_time;
         // int status;
@@ -126,18 +127,21 @@ void scheduler(int ncpu, int tslice)
         while (1)
         {
             printf("scheduler print %d %d\n",queue->st,queue->en);
+            int s = queue->st;
+            int e = queue->en;
             for(int i = queue->st; i < queue->en; i++)
             {
-                printf("pid: %d ",queue->ready_queue[i].pid);
+                printf("%d ",queue->ready_queue[i].pid);
             }
             printf("\n");
             
             int a = 0;
-            for(int i = queue->st; i < queue->en; i++)
+            for(int i = s; i < e; i++)
             {
-                if(a > ncpu)
+                if(a >= ncpu)
                     break;
                 sem_wait(&queue->mutex);
+                // printf("run pid: %d\n",queue->ready_queue[i].pid);
                 kill(queue->ready_queue[i].pid,SIGCONT);
                 sem_post(&queue->mutex);
                 a++;
@@ -147,9 +151,9 @@ void scheduler(int ncpu, int tslice)
 
             a = 0;
 
-            for(int i = queue->st; i < queue->en; i++)
+            for(int i = s; i < e; i++)
             {
-                if(a > ncpu)
+                if(a >= ncpu)
                     break;
                 sem_wait(&queue->mutex);
                 kill(queue->ready_queue[i].pid,SIGSTOP);
@@ -158,12 +162,13 @@ void scheduler(int ncpu, int tslice)
             }
 
             a = 0;
-            for(int i =  queue->st; i < queue->en; i++)
+            for(int i =  s; i < e; i++)
             {
-                if(a > ncpu)
+                if(a >= ncpu)
                     break;
                 queue->ready_queue[queue->en] = queue->ready_queue[i];
                 queue->en++;
+                a++;
             }
             queue->st += a;
             
@@ -291,7 +296,7 @@ void submit(char *const Argv[], int ncpu, int tslice)
         p.pid = status;
         p.execution_time = 0;
         p.wait_time = 0;
-
+        p.status = 0;
         // semaphore
         // printf("submit/n");
 
