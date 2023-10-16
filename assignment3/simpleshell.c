@@ -19,7 +19,6 @@
 #define SHM_SIZE sizeof(ReadyQueue)
 #define SHM_NAME "ready_queue"
 
-
 typedef struct Process
 {
     char executable[MAX_CMD_LEN];
@@ -82,14 +81,13 @@ Process *dequeue()
     }
 }
 
-
 int queue_size()
 {
     // sem_wait(&queue->mutex);
-    printf("front: %s rear: %s",queue->front,queue->rear);
+    printf("front: %s rear: %s", queue->front, queue->rear);
     int n = 0;
     Process *it = queue->front;
-    if(it == NULL)
+    if (it == NULL)
         return 0;
     while (it != NULL)
     {
@@ -126,57 +124,65 @@ void scheduler(int ncpu, int tslice)
         // printf("%d",tslice);
         while (1)
         {
-            printf("scheduler print %d %d\n",queue->st,queue->en);
+            printf("scheduler print %d %d\n", queue->st, queue->en);
             int s = queue->st;
             int e = queue->en;
-            for(int i = queue->st; i < queue->en; i++)
+            for (int i = queue->st; i < queue->en; i++)
             {
-                printf("%d ",queue->ready_queue[i].pid);
+                printf("%d ", queue->ready_queue[i].pid);
             }
             printf("\n");
-            
+
             int a = 0;
-            for(int i = s; i < e; i++)
+            for (int i = s; i < e; i++)
             {
-                if(a >= ncpu)
+                if (a >= ncpu)
                     break;
                 sem_wait(&queue->mutex);
                 // printf("run pid: %d\n",queue->ready_queue[i].pid);
-                kill(queue->ready_queue[i].pid,SIGCONT);
-                sem_post(&queue->mutex);
-                a++;
-            }
-            
-            sleep(tslice/1000);
-
-            a = 0;
-
-            for(int i = s; i < e; i++)
-            {
-                if(a >= ncpu)
-                    break;
-                sem_wait(&queue->mutex);
-                kill(queue->ready_queue[i].pid,SIGSTOP);
+                kill(queue->ready_queue[i].pid, SIGCONT);
                 sem_post(&queue->mutex);
                 a++;
             }
 
+            sleep(tslice / 1000);
+
             a = 0;
-            for(int i =  s; i < e; i++)
+
+            for (int i = s; i < e; i++)
             {
-                if(a >= ncpu)
-                    break;
-                queue->ready_queue[queue->en] = queue->ready_queue[i];
-                queue->en++;
+                if (a >= ncpu)
+                {
+                    queue->ready_queue[i].wait_time += tslice;
+                }
+                else
+                {
+                    queue->ready_queue[i].execution_time += tslice;
+                    sem_wait(&queue->mutex);
+                    kill(queue->ready_queue[i].pid, SIGSTOP);
+                    sem_post(&queue->mutex);
+                }
                 a++;
+            }
+
+            a = 0;
+            for (int i = s; i < e; i++)
+            {
+                if (a >= ncpu)
+                    break;
+                if (queue->ready_queue[i].status == 0)
+                {
+                    queue->ready_queue[queue->en] = queue->ready_queue[i];
+                    queue->en++;
+                    a++;
+                }
             }
             queue->st += a;
-            
 
             /*
             // printf("queue size: %d\n",queue_size);
             // // fflush(STDOUT_FILENO);
-            // // current_time = clock();   
+            // // current_time = clock();
             // // double sec=(double)start_time/CLOCKS_PER_SEC;                                                    // Get the current time
             // //elapsed_time = ((double)(current_time - start_time)) / CLOCKS_PER_SEC * 1000; // Calculate elapsed time in milliseconds
             // // Check if the desired interval has passed
@@ -252,13 +258,12 @@ void scheduler(int ncpu, int tslice)
             //     // }
             //     // sleep(tslice/1000);
             */
-            
-        
-        //sem_destroy(&queue->mutex);
-        // munmap(SHM_NAME,SHM_SIZE);
-        // close(shm_fd);
-        //puts("bancho5");
-        // exit(0);
+
+            // sem_destroy(&queue->mutex);
+            //  munmap(SHM_NAME,SHM_SIZE);
+            //  close(shm_fd);
+            // puts("bancho5");
+            //  exit(0);
         }
     }
     else
@@ -307,18 +312,17 @@ void submit(char *const Argv[], int ncpu, int tslice)
 
         // sem_post(&queue->mutex);
 
-        for(int i = queue->st; i < queue->en; i++)
+        for (int i = queue->st; i < queue->en; i++)
         {
-            printf("%d ",queue->ready_queue[i].pid);
+            printf("%d ", queue->ready_queue[i].pid);
         }
         printf("\n");
-
 
         // return p;
     }
 }
 
-void shm_setup(int ncpu,int tslice)
+void shm_setup(int ncpu, int tslice)
 {
     // Create a shared memory segment
     shm_fd = shm_open("/ready_queue", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
@@ -349,8 +353,8 @@ void shm_setup(int ncpu,int tslice)
     // Initialize the shared queue
     queue->front = NULL;
     queue->rear = NULL;
-    queue->ncpu=ncpu;
-    queue->tslice=tslice;
+    queue->ncpu = ncpu;
+    queue->tslice = tslice;
     queue->st = 0;
     queue->en = 0;
     // Access the shared queue
@@ -377,7 +381,7 @@ void shm_cleanup(int shm_fd)
         perror("shm_unlink");
         exit(EXIT_FAILURE);
     }
-    //sem_destroy(&queue->mutex);
+    // sem_destroy(&queue->mutex);
 }
 
 int secure_strcmp(const char *str1, const char *str2)
@@ -534,7 +538,8 @@ char *read_user_input()
     if (is_valid_format(Input))
     {
         // Execute the chmod command
-        if (chmod(Input + 2, S_IRUSR | S_IXUSR) == 0){
+        if (chmod(Input + 2, S_IRUSR | S_IXUSR) == 0)
+        {
         }
         else
         {
@@ -543,9 +548,45 @@ char *read_user_input()
     }
     return Input;
 }
+
+void sigchld_handler(int signo)
+{
+    pid_t terminated_pid;
+    int status;
+
+    while ((terminated_pid = waitpid(-1, &status, WNOHANG)) > 0)
+    {
+        if (WIFEXITED(status))
+        {
+            sem_wait(&queue->mutex);
+            for (int i = queue->st; i < queue->en; i++)
+            {
+                if (queue->ready_queue[i].pid == terminated_pid)
+                {
+                    queue->ready_queue[i].status = 1;
+                }
+            }
+            sem_post(&queue->mutex);
+        }
+    }
+}
+
+void print_det()
+{
+    for (int i = 0; i < queue->en; i++)
+    {
+        printf("PID: %d\n", queue->ready_queue[i].pid);
+        printf("exec time: %d\n", queue->ready_queue[i].execution_time);
+        printf("wait time: %d\n", queue->ready_queue[i].wait_time);
+    }
+    exit(0);
+}
+
 // running shell infinite loop
 void shell_loop()
 {
+    signal(SIGCHLD, sigchld_handler);
+    signal(SIGINT,print_det);
     scheduler(ncpu, tslice);
     int status;
     do
@@ -595,13 +636,12 @@ int main(int argc, char *argv[])
 
         bool runInBackground = false;
         // the main shell loop is called
-        shm_setup(ncpu,tslice);
-        //initialized the semaphore
-
+        shm_setup(ncpu, tslice);
+        // initialized the semaphore
 
         shell_loop();
         // printf("ended\n");
-        
+
         shm_cleanup(shm_fd);
     }
 }
