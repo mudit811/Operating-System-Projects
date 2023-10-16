@@ -16,6 +16,9 @@
 #include <time.h>
 
 #define MAX_CMD_LEN 100 // Maximum command length
+#define SHM_SIZE sizeof(ReadyQueue)
+#define SHM_NAME "ready_queue"
+
 
 typedef struct Process
 {
@@ -45,6 +48,36 @@ pid_t backgroundProcesses[100];
 int backgroundCount = 0;
 bool back_proc = false;
 int ncpu, tslice;
+int shm_fd;
+
+void enqueue(Process *p)
+{
+    if (queue->front == NULL)
+    {
+        // Queue is empty, set both front and rear to the new process
+        queue->front = queue->rear = p;
+    }
+    else
+    {
+        // Add the new process to the end of the queue
+        queue->rear->next = p;
+        queue->rear = queue->rear->next;
+    }
+}
+Process *dequeue()
+{
+    if (queue->front == NULL)
+    {
+        return NULL;
+    }
+    else
+    {
+        Process *p = queue->front;
+        queue->front = queue->front->next;
+        return p;
+    }
+}
+
 
 void scheduler(int ncpu, int tslice)
 {
@@ -57,13 +90,60 @@ void scheduler(int ncpu, int tslice)
     else if (sched_pid == 0)
     {
 
-        char *args[] = {"./scheduler.out", NULL};
+        clock_t start_time, current_time;
+        double elapsed_time;
+        int status;
+        start_time = clock(); // Initial start time
+        Process *process_array[ncpu];
+        for (int i=0;i<ncpu;i++){
+            process_array[i]=NULL;
+        }
 
-        execvp("./scheduler.out", args);
-        printf("hello");
-        fflush(stdout);
-        perror("execv error");
-        exit(EXIT_FAILURE);
+        // if (process_array[0]==NULL){
+        //     perror("fine");
+        // }
+        // printf("%d",tslice);
+        while (1)
+        {
+            
+
+            current_time = clock();   
+            double sec=(double)start_time/CLOCKS_PER_SEC;                                                    // Get the current time
+            //elapsed_time = ((double)(current_time - start_time)) / CLOCKS_PER_SEC * 1000; // Calculate elapsed time in milliseconds
+            // Check if the desired interval has passed
+            if ( ((double)current_time - (double)start_time) >= ( (double)tslice * CLOCKS_PER_SEC / 1000) )
+            {
+                // fflush(stdout);
+                // printf(" %.2f ",sec);
+                
+                int a = 0;
+                while (process_array[a]!=NULL){
+                    //pid_t result = waitpid(process_array[a]->pid, &status, WNOHANG) ;
+
+                    int res=kill(process_array[a]->pid,SIGSTOP);
+                    enqueue((process_array[a]));
+                    a++;
+                }
+                a=0;
+                while (a < ncpu)
+                {
+                    process_array[a] = dequeue(queue);
+                    if (process_array[a] != NULL)
+                    {
+                        int res = kill(process_array[a]->pid, SIGCONT);
+                    }
+                    else
+                        a = ncpu;
+                    a++;
+                }
+                start_time = current_time;
+            }
+        }
+        // sem_destroy(&queue->mutex);
+        munmap(SHM_NAME,SHM_SIZE);
+        close(shm_fd);
+        //puts("bancho5");
+        exit(0);
     }
     else
     {
@@ -82,11 +162,6 @@ Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
 {
     pid_t status = fork();
 
-    // int flag = 0, fd[2];
-    //  if (pipe(fd) == -1){
-    //      perror("Pipe creation failed");
-    //      exit(EXIT_FAILURE);
-    //  }
     if (status < 0)
     {
         printf("Child not created\n");
@@ -95,48 +170,23 @@ Process *submit(char *const Argv[], int ncpu, int tslice, Process *p)
     else if (status == 0)
     {
         kill(getpid(), SIGSTOP);
-        // close(fd[1]);
-        // while (flag == 0)
-        // {
-        //     read(fd[0], &flag, sizeof(flag));
-        // }
-        // close(fd[0]);
-        execvp(Argv[0], Argv);
+
+
+        execvp(Argv[1], Argv);
         // printf("I am  the child (%d)\n", getpid());
     }
     else if (status > 0)
     {
-        // close(fd[0]);
-        // int result= kill(status,SIGSTOP);
-        // flag=1;
-        // write(fd[1],&flag,sizeof(flag));
-        // close(fd[1]);
-        strcpy(p->executable, Argv[0]);
+        strcpy(p->executable, Argv[1]);
         p->pid = status;
-        // printf("%d",p->pid);
         return p;
     }
 }
 
-void enqueue(Process *p)
-{
-    if (queue->front == NULL)
-    {
-        // Queue is empty, set both front and rear to the new process
-        queue->front = queue->rear = p;
-    }
-    else
-    {
-        // Add the new process to the end of the queue
-        queue->rear->next = p;
-        queue->rear = queue->rear->next;
-    }
-}
-
-int shm_setup()
+int shm_setup(int ncpu,int tslice)
 {
     // Create a shared memory segment
-    int shm_fd = shm_open("/ready_queue", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+    shm_fd = shm_open("/ready_queue", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
     if (shm_fd == -1)
     {
         perror("shm_open");
@@ -159,7 +209,8 @@ int shm_setup()
     // Initialize the shared queue
     queue->front = NULL;
     queue->rear = NULL;
-
+    queue->ncpu=ncpu;
+    queue->tslice=tslice;
     // Access the shared queue
     return shm_fd;
 }
@@ -184,7 +235,7 @@ void shm_cleanup(int shm_fd)
         perror("shm_unlink");
         exit(EXIT_FAILURE);
     }
-    sem_destroy(&queue->mutex);
+    //sem_destroy(&queue->mutex);
 }
 
 int secure_strcmp(const char *str1, const char *str2)
@@ -242,13 +293,13 @@ int create_process_and_run(char *command)
         // if the command is of type submit
         if (!secure_strcmp(Args[0], "submit"))
         {
-            Process *p = (Process *)malloc(sizeof(Process));
+            Process *p = (Process *)malloc(sizeof(Process));  //i love pankhu so much :) :) :) 
             p = submit(Args, ncpu, tslice, p);
             // sem_wait(&queue->mutex);
             enqueue(p);
             // sem_post(&queue->mutex);
-            printf("%d\n", queue->front->pid);
-            printf("%d\n", queue->rear->pid);
+            printf("%s\n", queue->front->executable);
+            printf("%s\n", queue->rear->executable);
         }
         else
         {
@@ -342,8 +393,7 @@ char *read_user_input()
     if (is_valid_format(Input))
     {
         // Execute the chmod command
-        if (chmod(Input + 2, S_IRUSR | S_IXUSR) == 0)
-        {
+        if (chmod(Input + 2, S_IRUSR | S_IXUSR) == 0){
         }
         else
         {
@@ -355,8 +405,6 @@ char *read_user_input()
 // running shell infinite loop
 void shell_loop()
 {
-    queue->ncpu = ncpu;
-    queue->tslice = tslice;
     scheduler(ncpu, tslice);
     int status;
     do
@@ -406,14 +454,15 @@ int main(int argc, char *argv[])
 
         bool runInBackground = false;
         // the main shell loop is called
-        int shm_fd = shm_setup();
+        shm_fd = shm_setup(ncpu,tslice);
         // initialized the semaphore
-        if (sem_init(&queue->mutex, 1, 1) != 0)
-        {
-            perror("sem_init");
-            return EXIT_FAILURE;
-        }
+        // if (sem_init(&queue->mutex, 1, 1) != 0)
+        // {
+        //     perror("sem_init");
+        //     return EXIT_FAILURE;
+        // }
         shell_loop();
+        
         shm_cleanup(shm_fd);
     }
 }
