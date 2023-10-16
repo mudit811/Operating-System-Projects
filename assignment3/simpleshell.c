@@ -115,34 +115,47 @@ void scheduler(int ncpu, int tslice)
             {
                 // fflush(stdout);
                 // printf(" %.2f ",sec);
-                
+
                 int a = 0;
                 while (process_array[a]!=NULL){
+                    printf("%s\n",process_array[a]->executable);
+                    fflush(stdout);
+
                     //pid_t result = waitpid(process_array[a]->pid, &status, WNOHANG) ;
 
                     int res=kill(process_array[a]->pid,SIGSTOP);
-                    printf("just asked to stop\n");
+                    printf("asking to stop\n");
+                    fflush(stdout);
+                    //sem_wait(&queue->mutex);
                     enqueue((process_array[a]));
+                    //sem_post(&queue->mutex);
+                    process_array[a]=NULL;
                     a++;
                 }
-                a=0;
-                while (a < ncpu)
+                int j=0;
+                while (j < ncpu)
                 {
+                    printf("%s\n",process_array[j]->executable);
+                    fflush(stdout);
+                    //sem_wait(&queue->mutex);
                     process_array[a] = dequeue(queue);
-                    if (process_array[a] != NULL)
+                    //sem_post(&queue->mutex);
+                    if (process_array[j] != NULL)
                     {
-                        int res = kill(process_array[a]->pid, SIGCONT);
-                        printf("just asked to cont\n");
+                        int res = kill(process_array[j]->pid, SIGCONT);
+                        printf("asking to cont\n");
+                        fflush(stdout);
 
                     }
-                    else
-                        a = ncpu;
-                    a++;
+                    else{
+                        break;
+                    }
+                    j++;
                 }
                 start_time = current_time;
             }
         }
-        sem_destroy(&queue->mutex);
+        //sem_destroy(&queue->mutex);
         munmap(SHM_NAME,SHM_SIZE);
         close(shm_fd);
         //puts("bancho5");
@@ -298,10 +311,9 @@ int create_process_and_run(char *command)
         {
             Process *p = (Process *)malloc(sizeof(Process));
             p = submit(Args, ncpu, tslice, p);
-            sem_wait(&queue->mutex);
+            //sem_wait(&queue->mutex);
             enqueue(p);
-            printf("just added to queue\n");
-            sem_post(&queue->mutex);
+            //sem_post(&queue->mutex);
         }
         else
         {
@@ -458,11 +470,11 @@ int main(int argc, char *argv[])
         // the main shell loop is called
         shm_fd = shm_setup(ncpu,tslice);
         //initialized the semaphore
-        if (sem_init(&queue->mutex, 1, 1) != 0)
-        {
-            perror("sem_init");
-            return EXIT_FAILURE;
-        }
+        // if (sem_init(&queue->mutex, 1, 1) != 0)
+        // {
+        //     perror("sem_init");
+        //     return EXIT_FAILURE;
+        // }
         shell_loop();
         
         shm_cleanup(shm_fd);
