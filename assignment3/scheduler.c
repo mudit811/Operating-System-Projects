@@ -38,9 +38,10 @@ typedef struct ReadyQueue
 #define SHM_SIZE sizeof(ReadyQueue)
 #define SHM_NAME "ready_queue"
 
+ReadyQueue *queue;
 void enqueue(Process *p, ReadyQueue *queue)
 {
-    if (queue->rear == NULL)
+    if (queue->front == NULL)
     {
         // Queue is empty, set both front and rear to the new process
         queue->front = queue->rear = p;
@@ -49,10 +50,10 @@ void enqueue(Process *p, ReadyQueue *queue)
     {
         // Add the new process to the end of the queue
         queue->rear->next = p;
-        queue->rear = p;
+        queue->rear = queue->rear->next;
     }
 }
-Process *dequeue(ReadyQueue *queue)
+Process *dequeue()
 {
     if (queue->front == NULL)
     {
@@ -68,8 +69,9 @@ Process *dequeue(ReadyQueue *queue)
 
 int main()
 {
+    // printf(" me");
+    // fflush(stdout);
     int shm_fd;
-    ReadyQueue *queue;
     // Open the shared memory object
     shm_fd = shm_open(SHM_NAME, O_RDONLY, 0);
     if (shm_fd == -1)
@@ -84,54 +86,64 @@ int main()
         perror("mmap");
         exit(EXIT_FAILURE);
     }    
-    //initialized the semaphore
-    // if (sem_init(&queue->mutex, 1, 1) != 0) {
-    //     perror("sem_init");
-    //     return EXIT_FAILURE;
-    // }
+
+
     int ncpu, tslice;
+    // sem_wait(&queue->mutex);
     ncpu = queue->ncpu;
     tslice = queue->tslice;
+    // sem_post(&queue->mutex);
 
     clock_t start_time, current_time;
     double elapsed_time;
     int status;
     start_time = clock(); // Initial start time
     Process *process_array[ncpu];
-    printf("%d",tslice);
+    for (int i=0;i<ncpu;i++){
+        process_array[i]=NULL;
+    }
 
+    if (process_array[0]==NULL){
+        perror("fine");
+    }
+    // printf("%d",tslice);
     while (1)
     {
-        current_time = clock();                                                       // Get the current time
-        //elapsed_time = ((double)(current_time - start_time)) / CLOCKS_PER_SEC * 1000; // Calculate elapsed time in milliseconds
+          
 
+        current_time = clock();   
+        double sec=(double)start_time/CLOCKS_PER_SEC;                                                    // Get the current time
+        //elapsed_time = ((double)(current_time - start_time)) / CLOCKS_PER_SEC * 1000; // Calculate elapsed time in milliseconds
         // Check if the desired interval has passed
-        if ((current_time - start_time) >= tslice * CLOCKS_PER_SEC / 1000)
+        if ( ((double)current_time - (double)start_time) >= ( (double)tslice * CLOCKS_PER_SEC / 1000) )
         {
             // fflush(stdout);
-            // int a = 0;
-            // while (process_array[a]!=NULL){
-            //     //pid_t result = waitpid(process_array[a]->pid, &status, WNOHANG) ;
+            // printf(" %.2f ",sec);
+            
+            int a = 0;
+            while (process_array[a]!=NULL){
+                //pid_t result = waitpid(process_array[a]->pid, &status, WNOHANG) ;
 
-            //     int res=kill(process_array[a]->pid,SIGSTOP);
-            //     enqueue(process_array[a],queue);
-            //     a++;
-            // }
-            // while (a < ncpu)
-            // {
-            //     process_array[a] = dequeue(queue);
-            //     if (process_array[a] != NULL)
-            //     {
-            //         int res = kill(process_array[a]->pid, SIGCONT);
-            //     }
-            //     else
-            //         a = ncpu;
-            //     a++;
-            // }
+                int res=kill(process_array[a]->pid,SIGSTOP);
+                enqueue((process_array[a]),queue);
+                a++;
+            }
+            a=0;
+            while (a < ncpu)
+            {
+                process_array[a] = dequeue(queue);
+                if (process_array[a] != NULL)
+                {
+                    int res = kill(process_array[a]->pid, SIGCONT);
+                }
+                else
+                    a = ncpu;
+                a++;
+            }
             start_time = current_time;
         }
     }
-    //sem_destroy(&queue->mutex);
+    // sem_destroy(&queue->mutex);
     munmap(SHM_NAME,SHM_SIZE);
     close(shm_fd);
     //puts("bancho5");
