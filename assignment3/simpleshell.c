@@ -121,6 +121,7 @@ void scheduler(int ncpu, int tslice)
                     //pid_t result = waitpid(process_array[a]->pid, &status, WNOHANG) ;
 
                     int res=kill(process_array[a]->pid,SIGSTOP);
+                    printf("just asked to stop\n");
                     enqueue((process_array[a]));
                     a++;
                 }
@@ -131,6 +132,8 @@ void scheduler(int ncpu, int tslice)
                     if (process_array[a] != NULL)
                     {
                         int res = kill(process_array[a]->pid, SIGCONT);
+                        printf("just asked to cont\n");
+
                     }
                     else
                         a = ncpu;
@@ -139,7 +142,7 @@ void scheduler(int ncpu, int tslice)
                 start_time = current_time;
             }
         }
-        // sem_destroy(&queue->mutex);
+        sem_destroy(&queue->mutex);
         munmap(SHM_NAME,SHM_SIZE);
         close(shm_fd);
         //puts("bancho5");
@@ -293,13 +296,12 @@ int create_process_and_run(char *command)
         // if the command is of type submit
         if (!secure_strcmp(Args[0], "submit"))
         {
-            Process *p = (Process *)malloc(sizeof(Process));  //i love pankhu so much :) :) :) 
+            Process *p = (Process *)malloc(sizeof(Process));
             p = submit(Args, ncpu, tslice, p);
-            // sem_wait(&queue->mutex);
+            sem_wait(&queue->mutex);
             enqueue(p);
-            // sem_post(&queue->mutex);
-            printf("%s\n", queue->front->executable);
-            printf("%s\n", queue->rear->executable);
+            printf("just added to queue\n");
+            sem_post(&queue->mutex);
         }
         else
         {
@@ -455,12 +457,12 @@ int main(int argc, char *argv[])
         bool runInBackground = false;
         // the main shell loop is called
         shm_fd = shm_setup(ncpu,tslice);
-        // initialized the semaphore
-        // if (sem_init(&queue->mutex, 1, 1) != 0)
-        // {
-        //     perror("sem_init");
-        //     return EXIT_FAILURE;
-        // }
+        //initialized the semaphore
+        if (sem_init(&queue->mutex, 1, 1) != 0)
+        {
+            perror("sem_init");
+            return EXIT_FAILURE;
+        }
         shell_loop();
         
         shm_cleanup(shm_fd);
