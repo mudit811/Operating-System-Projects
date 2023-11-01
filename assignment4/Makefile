@@ -6,7 +6,7 @@ all:
 	gcc -m32 -o loader loader.c
 
 execute:
-	./loader ./fib
+	./loader ./sum
 
 clean: 
 	-@rm -f sum loader
