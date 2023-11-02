@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 {
   struct sigaction sig;
   memset(&sig,0,sizeof(sig));  
-  sig.sa_handler=sigsegv_handler;
+  sig.sa_handler=&sigsegv_handler;  // I am a retard
   sig.sa_flags=SA_SIGINFO;
 
   sigaction(SIGSEGV,&sig,NULL);
