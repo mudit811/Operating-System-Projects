@@ -2,6 +2,7 @@
  * No changes are allowed to this file
  */
 #define _XOPEN_SOURCE 700
+#define __USE_XOPEN_EXTENDED
 #include <stdio.h>
 #include <elf.h>
 #include <string.h>

@@ -6,47 +6,55 @@ int fd;
 unsigned int count_phdr_entry;
 int page_faults,page_allocations;
 size_t lost_memory;
-size_t find_segment_index(void *address) {
-    for (size_t i = 0; i < count_phdr_entry; i++) {
-        if (phdr[i].p_type == PT_LOAD) {
-            uintptr_t segment_start = phdr[i].p_vaddr;
-            uintptr_t segment_end = segment_start + phdr[i].p_memsz;
+// size_t find_segment_index(void *address) {
+//     for (size_t i = 0; i < count_phdr_entry; i++) {
+//         if (phdr[i].p_type == PT_LOAD) {
+//             uintptr_t segment_start = phdr[i].p_vaddr;
+//             uintptr_t segment_end = segment_start + phdr[i].p_memsz;
 
-            if (address >= (void *)segment_start && address < (void *)segment_end) {
-                return i; // Found the segment that caused the fault
-            }
-        }
-    }
-    return (size_t)-1; // Not found in any segment
-}
+//             if (address >= (void *)segment_start && address < (void *)segment_end) {
+//                 return i; // Found the segment that caused the fault
+//             }
+//         }
+//     }
+//     return (size_t)-1; // Not found in any segment
+// }
 
-/*
- * Seg fault handling function
- */
+// /*
+//  * Seg fault handling function
+//  */
 void sigsegv_handler(int signum,siginfo_t *info,void *context) {
     printf("Hum pe toh hai hi na\n");
     void *fault_address=info->si_addr;
-    size_t segment_index = find_segment_index(fault_address);
-    // Find the segment that contains the fault_address
+    // size_t segment_index = find_segment_index(fault_address);
+    // // Find the segment that contains the fault_address
+    int found=0;
     for (size_t i = 0; i < count_phdr_entry; i++) {
+      printf("pehla padaw paar\n");
         uintptr_t segment_start = phdr[i].p_vaddr;
         uintptr_t segment_end = segment_start + phdr[i].p_memsz;
 
         if (fault_address >= (void *)segment_start && fault_address < (void *)segment_end) {
             // Map memory for this segment
             void *virt_mem = mmap((void *)(uintptr_t)phdr[i].p_vaddr,phdr[i].p_memsz,PROT_READ | PROT_WRITE | PROT_EXEC,MAP_PRIVATE | MAP_FIXED, fd, phdr[i].p_offset);
-
             if (virt_mem == MAP_FAILED) {
                 perror("mmap");
                 exit(EXIT_FAILURE);
             }
-
+            printf("Mmap kar diya hai\n");
             // Update page fault and page allocation counts
             page_faults++;
             page_allocations++;
+            found=1;
+            break;
         }
     }
-
+    if(found==1){
+      printf("Hum pe toh aagya\n");
+    }
+    else{
+      printf("Humse na hua\n");
+    }
     // Continue execution
     return;
     // Perform custom error handling or cleanup here.
@@ -100,43 +108,72 @@ void load_and_run_elf(char **argv)
   count_phdr_entry = ehdr->e_phnum;
   unsigned int size_phdr_entry = ehdr->e_phentsize;
   unsigned int elfentry = ehdr->e_entry;
+  printf("phdr_offset: %u\n", ehdr->e_phoff);
+  printf("count_phdr_entry: %u\n", ehdr->e_phnum);
+  printf("size_phdr_entry: %u\n", ehdr->e_phentsize);
+  printf("elfentry: %u\n", ehdr->e_entry);
+
   //int flag = 1;
   // allocating space for program header
   phdr = (Elf32_Phdr *)malloc(sizeof(Elf32_Phdr) * count_phdr_entry);
 
   // looping over program header entries
   // int counter = 0;
-  for (size_t i = 0; i < ehdr->e_phnum; i++)
-  {
-    if (lseek(fd, phdr_offset + (i * size_phdr_entry), SEEK_SET) == -1)
-    {
-      close(fd);
-      exit(EXIT_FAILURE);
-    }
-    int k = read(fd, &phdr[i], sizeof(Elf32_Phdr));
-    if (k == -1)
-    {
-      perror("Error in Program_header");
-    }
-    // if (phdr[i].p_type == PT_LOAD)
-    // {
-    //   //flag = 0;
-    //   // counter++;
-    //   // checking if the entry point lies in the segment and only then loading
-    //   // if (phdr[i].p_memsz > (elfentry) - (phdr[i].p_vaddr) && phdr[i].p_vaddr <= elfentry) {        
-    //   // creating a virtual mapping
-    //   void *virt_mem = mmap((void *)(uintptr_t)phdr[i].p_vaddr, phdr[i].p_memsz, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, phdr[i].p_offset);
-    //   if (virt_mem == MAP_FAILED)
-    //   {
-    //     perror("mmap");
-    //     exit(EXIT_FAILURE);
-    //   }
-    // }
-  }
+  // for (size_t i = 0; i < ehdr->e_phnum; i++)
+  // {
+  //   if (lseek(fd, phdr_offset + (i * size_phdr_entry), SEEK_SET) == -1)
+  //   {
+  //     close(fd);
+  //     exit(EXIT_FAILURE);
+  //   }
+  //   int k = read(fd, &phdr[i], sizeof(Elf32_Phdr));
+  //   if (k == -1)
+  //   {
+  //     perror("Error in Program_header");
+  //   }
+  //   if (phdr[i].p_type == PT_LOAD)
+  //   {
+  //     counter++;
+  //     // checking if the entry point lies in the segment and only then loading
+  //     // if (phdr[i].p_memsz > (elfentry) - (phdr[i].p_vaddr) && phdr[i].p_vaddr <= elfentry) {        
+  //     // creating a virtual mapping
+  //     printf("mmap arguments:\n");
+  //     printf("  Address: %p\n", (void *)(uintptr_t)phdr[i].p_vaddr);
+  //     printf("  Offset: %u\n", phdr[i].p_offset);
+  //     unsigned int temp=0;
+  //     if(phdr[i].p_memsz%4096==0){
+  //       temp=phdr[i].p_memsz;
+  //     }
+  //     else{
+  //       temp=((phdr[i].p_memsz/4096))*4096;
+  //       temp+=4096;
+  //     }
+  //     printf("  Length: %u\n", temp);
+
+  //     void *virt_mem = mmap((void *)(uintptr_t)phdr[i].p_vaddr, temp, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, phdr[i].p_offset);
+      
+  //     if (virt_mem == MAP_FAILED)
+  //     {
+  //       perror("mmap");
+  //       exit(EXIT_FAILURE);
+  //     }
+  //     if (lseek(fd, phdr[i].p_offset, SEEK_SET) == -1) {
+  //           perror("Error seeking to segment data");
+  //           close(fd);
+  //           exit(1);
+  //     }
+  //     if (read(fd, virt_mem, phdr[i].p_filesz) == -1) {
+  //           perror("Error reading segment data");
+  //           close(fd);
+  //           exit(1);
+  //     }
+
+  //   }
+  // }
+  // printf("The Number of PT_LOAD: %d\n",counter);
 
   // typecasting to a function pointer
   int (*_start)(void) = (int (*)(void))ehdr->e_entry;
-
   // the last two steps of calling the function and printing the result
   int result = _start();
   printf("User _start return value = %d\n", result);
@@ -145,10 +182,9 @@ void load_and_run_elf(char **argv)
 int main(int argc, char **argv)
 {
   struct sigaction sig;
-  memset(&sig,0,sizeof(sig));  
-  sig.sa_handler=&sigsegv_handler;  // I am a retard
+  memset(&sig,0,sizeof(sig));
   sig.sa_flags=SA_SIGINFO;
-
+  sig.sa_sigaction=sigsegv_handler;
   sigaction(SIGSEGV,&sig,NULL);
   if (argc != 2)
   {
