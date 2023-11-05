@@ -10,7 +10,6 @@ size_t lost_memory;
 //  * Seg fault handling function
 //  */
 void sigsegv_handler(int signum,siginfo_t *info,void *context) {
-    printf("Hum pe toh hai hi na\n");
     void *fault_address=info->si_addr;
     printf("Fault_address: %p\n",fault_address);
     // size_t segment_index = find_segment_index(fault_address);
@@ -27,9 +26,15 @@ void sigsegv_handler(int signum,siginfo_t *info,void *context) {
 
       if (fault_address >= (void *)segment_start && fault_address < (void *)segment_end) 
       {
-        printf("HEllo\n");
         // Map memory for this segment
-        void *virt_mem = mmap((void *)(uintptr_t)phdr[i].p_vaddr,phdr[i].p_memsz,PROT_READ | PROT_WRITE | PROT_EXEC,MAP_PRIVATE | MAP_FIXED, fd, phdr[i].p_offset);
+        size_t temp;
+        if(phdr[i].p_memsz%4096==0){
+          temp=phdr[i].p_memsz;
+        }
+        else{
+          temp=((phdr[i].p_memsz/4096)+1)*4096;
+        }
+        void *virt_mem = mmap((void *)(uintptr_t)phdr[i].p_vaddr,temp,PROT_READ | PROT_WRITE | PROT_EXEC,MAP_PRIVATE | MAP_FIXED, fd, phdr[i].p_offset);
         if (virt_mem == MAP_FAILED) {
             perror("mmap");
             exit(EXIT_FAILURE);
@@ -173,7 +178,7 @@ void load_and_run_elf(char **argv)
   // printf("The Number of PT_LOAD: %d\n",counter);
 
   // typecasting to a function pointer
-  int (*_start)(void) = (int (*)(void))ehdr->e_entry;
+  int (*_start)() = (int (*)())(ehdr->e_entry);
   // the last two steps of calling the function and printing the result
   int result = _start();
   printf("User _start return value = %d\n", result);
