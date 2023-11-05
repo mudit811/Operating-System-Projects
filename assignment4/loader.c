@@ -39,13 +39,13 @@ void sigsegv_handler(int signum,siginfo_t *info,void *context) {
             perror("mmap");
             exit(EXIT_FAILURE);
         }
-        if (read(fd, virt_mem, phdr[i].p_filesz) == -1) {
+        if (read(fd, virt_mem, temp) == -1) {
             perror("Error reading segment data");
             close(fd);
             exit(1);
         }
 
-        printf("Mmap kar diya hai\n");
+        //printf("Mmap kar diya hai\n");
         // Update page fault and page allocation counts
         page_faults++;
         page_allocations++;
@@ -54,10 +54,10 @@ void sigsegv_handler(int signum,siginfo_t *info,void *context) {
       }
     }
     if(found==1){
-      printf("Hum pe toh aagya\n");
+      printf("we got it\n");
     }
     else{
-      printf("Humse na hua\n");
+      printf("we did not get it\n");
     }
     // Continue execution
     return;
