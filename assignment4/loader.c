@@ -34,12 +34,13 @@ void sigsegv_handler(int signum,siginfo_t *info,void *context) {
         else{
           temp=((phdr[i].p_memsz/4096)+1)*4096;
         }
+        printf("%d\n",temp);
         void *virt_mem = mmap((void *)(uintptr_t)phdr[i].p_vaddr,temp,PROT_READ | PROT_WRITE | PROT_EXEC,MAP_PRIVATE | MAP_FIXED, fd, phdr[i].p_offset);
         if (virt_mem == MAP_FAILED) {
             perror("mmap");
             exit(EXIT_FAILURE);
         }
-        if (read(fd, virt_mem, temp) == -1) {
+        if (read(fd, (void *)(uintptr_t)phdr[i].p_vaddr, temp) == -1) {
             perror("Error reading segment data");
             close(fd);
             exit(1);
