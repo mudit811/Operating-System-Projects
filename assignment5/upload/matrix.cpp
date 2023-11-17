@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
       std::fill(B[i], B[i]+size, 1);
       std::fill(C[i], C[i]+size, 0);
     }
-  });  
+  },numThread);  
   // start the parallel multiplication of two matrices
   parallel_for(0, size, 0, size, [&](int i, int j) {
     for(int k=0; k<size; k++) {
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     delete A[i];
     delete B[i];
     delete C[i];
-  });
+  },numThread);
   delete[] A;
   delete[] B;
   delete[] C;
