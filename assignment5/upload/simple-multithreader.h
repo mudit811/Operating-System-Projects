@@ -71,7 +71,7 @@ void *thread_func(void *ptr)
 void parallel_for(int low, int high, std::function<void(int)> &&lambda, int numThreads)
 {
   // code here
-   clock_t start_time = clock();
+  clock_t start_time = clock();
   pthread_t tid[numThreads];
   thread_args args[numThreads];
   int chunk = ceil((high - low) / numThreads);
@@ -86,13 +86,11 @@ void parallel_for(int low, int high, std::function<void(int)> &&lambda, int numT
   {
     pthread_join(tid[i], NULL);
   }
-   clock_t end_time = clock();
+  clock_t end_time = clock();
 
-    // Calculate the duration in clock cycles
-    clock_t duration = end_time - start_time;
+  clock_t duration = end_time - start_time;
 
-    // Output the runtime in seconds
-    printf("Runtime of this threadding: %f seconds\n", ((double)duration) / CLOCKS_PER_SEC);
+  printf("Runtime of this threadding: %f seconds\n", ((double)duration) / CLOCKS_PER_SEC);
 }
 
 // This version of parallel_for is for parallelizing two-dimensional for-loops, i.e., an outter for-i loop and
@@ -123,7 +121,7 @@ void *thread_func2(void *ptr)
 void parallel_for(int low1, int high1, int low2, int high2,
                   std::function<void(int, int)> &&lambda, int numThreads)
 {
-   clock_t start_time = clock();
+  clock_t start_time = clock();
   pthread_t tid[numThreads];
   thread_arg2 args[numThreads];
   int chunk = ceil((high1 - low1) / numThreads);
@@ -133,17 +131,17 @@ void parallel_for(int low1, int high1, int low2, int high2,
     args[i].low2 = low2;
     args[i].low1 = i * chunk;
     args[i].high1 = (i + 1) * chunk > (high1) ? high1 : (i + 1) * chunk;
+    args[i].lambda=lambda;
     pthread_create(&tid[i], NULL, thread_func2, (void *)&args[i]);
   }
+
   for (int i = 0; i < numThreads; i++)
   {
     pthread_join(tid[i], NULL);
   }
-   clock_t end_time = clock();
+  clock_t end_time = clock();
 
-    // Calculate the duration in clock cycles
-    clock_t duration = end_time - start_time;
+  clock_t duration = end_time - start_time;
 
-    // Output the runtime in seconds
-    printf("Runtime of this threadding: %f seconds\n", ((double)duration) / CLOCKS_PER_SEC);
+  printf("Runtime of this threadding: %f seconds\n", ((double)duration) / CLOCKS_PER_SEC);
 }
